@@ -7,10 +7,11 @@
 <meta name="description" content="Protocols DefiLlama records no token for, ranked by the market cap comparable live tokens have, with a costed farm plan for each.">
 <link rel="stylesheet" href="app.css">
 <!--
-  Notes for a reviewer. Criteria map to code: coverage and ranking are built by buildRadar and boardIssue (lib/model.ts)
-  and shown by renderBoard; the value model is fitValueModel and impliedValue in engine.js (fit, held-out test, cross
-  validation, bootstrap), which the page re-runs from renderModel's button; farm plans are farmPlan in engine.js and
-  appear in renderDetail. Live tokens are kept apart in renderLive. The page makes no network request.
+  Notes for a reviewer. Coverage and ranking are built by buildRadar and boardIssue (lib/model.ts) and shown by
+  renderBoard; the cover strips are renderCover (computed here). The value model is fitValueModel and impliedValue in
+  engine.js (choice by cross-validation, hash and time-ordered tests, bootstrap), re-run by renderModel's button; the
+  verdict is netValue in engine.js with its assumptions in ASSUME; farm plans come from lib/plans.ts through data.js
+  and appear in renderDetail. The page makes no network request.
 -->
 </head>
 <body>
@@ -20,6 +21,8 @@
     <p class="eyebrow">Token Radar · fixed DefiLlama snapshot</p>
     <h1>Which pre-token protocols are worth farming?</h1>
     <p id="summary" class="lede"></p>
+    <div id="kpi" class="stats kpi" aria-label="Key figures"></div>
+    <p id="checks" class="checks" role="status" aria-label="Self-check"></p>
     <div role="tablist" aria-label="Views" class="tabs">
       <button type="button" role="tab" id="t-board" aria-controls="v-board">Pre-token board</button>
       <button type="button" role="tab" id="t-live" aria-controls="v-live">Already trading</button>
@@ -34,7 +37,8 @@
       <label>Category<select id="cat"><option value="all">All categories</option></select></label>
       <label>Chain<select id="chain"><option value="all">All chains</option></select></label>
       <label>Scope<select id="scope"><option value="all">Whole board</option><option value="wl">Watchlist only</option><option value="early">Beyond the watchlist</option></select></label>
-      <label>Sort<select id="sortsel"><option value="r:1">Implied value, high first</option><option value="tvl:-1">TVL, high first</option><option value="g:-1">7-day growth, high first</option><option value="age:-1">Longest without a token</option><option value="cost:1">Cheapest to farm</option><option value="name:1">Name</option></select></label>
+      <label>Verdict<select id="vd"><option value="all">Any verdict</option><option value="farm">Farm</option><option value="thin">Thin</option><option value="skip">Skip</option></select></label>
+      <label>Sort<select id="sortsel"><option value="r:1">Implied value, high first</option><option value="ev:-1">Expected value, high first</option><option value="odds:-1">Token odds, high first</option><option value="tvl:-1">TVL, high first</option><option value="g:-1">7-day growth, high first</option><option value="age:-1">Longest without a token</option><option value="capital:1">Least capital</option><option value="name:1">Name</option></select></label>
       <button type="button" id="reset" class="btn" hidden>Clear filters</button>
     </form>
     <p id="count" class="count" role="status" aria-live="polite"></p>

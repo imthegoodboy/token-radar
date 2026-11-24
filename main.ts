@@ -9,7 +9,7 @@
 import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { boardIssue, buildRadar, dataScript, parseSnapshot } from './lib/model.ts';
+import { boardIssue, buildRadar, dataScript, notesBlock, parseSnapshot } from './lib/model.ts';
 import { buildDossier } from './vendor/makefun-board.ts';
 
 const here = fileURLToPath(new URL('.', import.meta.url));
@@ -48,7 +48,17 @@ const issue = boardIssue(board, snapshot);
 if (issue !== null) fail(`the model wrote a board the gate refuses: ${issue}`);
 
 mkdirSync(out, { recursive: true });
-writeFileSync(join(out, 'board.json'), `${JSON.stringify({ model: { version: 'radar-2', fitted_on: fit.n, held_out: fit.held_out.full, cross_validated: fit.cross_validated.full }, rows: board })}\n`);
+writeFileSync(
+  join(out, 'board.json'),
+  `${JSON.stringify({ model: { version: 'radar-3', chosen: fit.chosen, ridge_penalty: fit.lambda, fitted_on: fit.n, held_out: fit.held_out[fit.chosen], time_ordered: fit.time.chosen, cross_validated: fit.cross_validated[fit.chosen] }, rows: board })}\n`,
+);
+// --notes <file>: rewrite the block between the RESULTS markers in a markdown file with the numbers just computed.
+const notes = arg('notes', '');
+if (notes !== '') {
+  const text = readFileSync(notes, 'utf8'), a = text.indexOf('<!-- results -->'), b = text.indexOf('<!-- /results -->');
+  if (a < 0 || b < a) fail(`${notes} has no results markers`);
+  writeFileSync(notes, `${text.slice(0, a)}<!-- results -->\n${notesBlock(fit, radar)}\n${text.slice(b)}`);
+}
 writeFileSync(join(out, 'data.js'), dataScript(radar));
 const files = copyFiles(join(here, 'dashboard'), join(out, 'dashboard'));
 const shots = copyFiles(join(here, 'screenshots'), join(out, 'screenshots'));
@@ -61,9 +71,9 @@ writeFileSync(
   buildDossier(out, { text_max_bytes: 65_536, screenshots: { max: 4, max_bytes: 524_288 }, dashboard: { max_files: 400, max_bytes: 4_194_304 } }),
 );
 
-const hold = fit.held_out.full;
+const hold = fit.held_out[fit.chosen];
 process.stdout.write(
   `token radar: ${radar.counts.protocols} protocols, ${radar.counts.watchlist} on the watchlist, ${board.length} rows (${radar.counts.early} beyond it), model fitted on ${fit.n} live tokens\n` +
-    `token radar: held-out R2 ${hold.r2.toFixed(2)}, median error x${hold.median_factor.toFixed(2)}, ridge penalty ${fit.lambda}; top of the board is ${board[0]!.name}\n` +
+    `token radar: chosen ${fit.chosen}, held-out R2 ${hold.r2.toFixed(2)}, rank correlation ${hold.spearman.toFixed(2)}, median error x${hold.median_factor.toFixed(2)}, ridge penalty ${fit.lambda}; top of the board is ${board[0]!.name}\n` +
     `token radar: wrote ${files.length} dashboard files and ${shots.length} screenshots\n`,
 );

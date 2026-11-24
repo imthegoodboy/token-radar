@@ -8,7 +8,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { boardIssue, buildRadar, isComparable, isOriginal, parseSnapshot } from '../lib/model.ts';
+import { boardIssue, buildRadar, isComparable, isOriginal, notesBlock, oddsTable, parseSnapshot } from '../lib/model.ts';
+import { farmPlan } from '../lib/plans.ts';
 import { buildDossier } from '../vendor/makefun-board.ts';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
@@ -46,7 +47,7 @@ test('the model is deterministic and recovers a planted elasticity', () => {
   assert.equal(JSON.stringify(a.board), JSON.stringify(b.board));
   const elasticity = a.fit.terms.find((t: any) => t.id === 'tvl');
   assert.ok(elasticity.value > 0.3 && elasticity.value < 0.7, `elasticity ${elasticity.value}`);
-  assert.ok(a.fit.held_out.full.r2 > 0.3, 'planted signal should be found out of sample');
+  assert.ok(a.fit.held_out[a.fit.chosen].r2 > 0.3, 'planted signal should be found out of sample');
 });
 
 test('the board satisfies the gate', () => {
@@ -78,10 +79,66 @@ test('farm plans stay inside the gate for odd inputs', () => {
   const base = { slug: 'z', name: 'Z', category: null, chains: [], tvl_usd: 5e6, change_7d: null, mcap_usd: null, listed_at: null, gecko_id: null, symbol: null };
   const odd = [base, { ...base, category: 'Prediction Market', chains: ['Ethereum'], change_7d: -80, listed_at: '2026-11-13' }, { ...base, category: 'Cross Chain Bridge', chains: ['Solana'], change_7d: 4448, listed_at: '2021-10-20' }];
   for (const p of odd) {
-    const plan = engine.farmPlan(p, { asOf: '2026-11-14' });
+    const plan = farmPlan(p, '2026-11-14');
     assert.ok(plan.steps.length >= 3 && plan.steps.length <= 12);
     for (const s of plan.steps) assert.ok(s.text.length >= 20 && s.text.length <= 600 && /Cost: .+ Time: .+\.$/.test(s.text), s.text);
   }
+});
+
+test('plans differ by category, capital follows the TVL tier, wording stays ordinary', () => {
+  const base = { slug: 'z', name: 'Z', category: 'Lending', chains: ['Base'], tvl_usd: 5e6, change_7d: 1, mcap_usd: null, listed_at: '2025-01-01', gecko_id: null, symbol: null };
+  const lend = farmPlan(base, '2026-11-14'), perp = farmPlan({ ...base, category: 'Derivatives' }, '2026-11-14'), big = farmPlan({ ...base, tvl_usd: 9e8 }, '2026-11-14');
+  assert.notEqual(lend.kind, perp.kind);
+  assert.notDeepEqual(lend.steps.map((s) => s.t), perp.steps.map((s) => s.t));
+  assert.notEqual(lend.risk, perp.risk);
+  assert.ok(big.capital > lend.capital, 'capital rises with the TVL tier');
+  assert.ok(lend.gas_lo < lend.gas_hi, 'gas is a range');
+  for (const s of [...lend.steps, ...perp.steps]) assert.ok(!/look more like|several wallets|many wallets|multiple wallets|\$6\b/i.test(s.t), s.t);
+});
+
+test('model choice, time-ordered test, coverage, odds, verdicts and rank ranges are present and consistent', () => {
+  const snap = parseSnapshot(JSON.stringify(synthetic()));
+  const { board, radar, fit } = buildRadar(snap);
+  assert.ok(fit.labels.some((l: any) => l.id === fit.chosen));
+  assert.ok(fit.select.length === fit.labels.length && fit.held_out[fit.chosen] && fit.time.chosen && fit.time.n_test > 0);
+  assert.ok(fit.time.n_fit + fit.time.n_test === fit.n && fit.hold.n_fit + fit.hold.n_test === fit.n);
+  for (const c of [fit.hold.cov50, fit.hold.cov80, fit.time.cov50, fit.time.cov80]) assert.ok(c >= 0 && c <= 1);
+  assert.ok(fit.terms.filter((t: any) => !t.used).every((t: any) => t.value === 1 || t.id === 'tvl'));
+  assert.ok(radar.rank_factor >= 1);
+  for (const r of board) {
+    assert.ok(r.token_odds >= 0 && r.token_odds <= 1 && r.token_odds_peers >= 0);
+    assert.ok(['farm', 'thin', 'skip'].includes(r.verdict));
+    assert.ok(r.rank_range_typical_error[0] <= r.rank && r.rank <= r.rank_range_typical_error[1]);
+    assert.ok(r.expected_value_usd >= 0 && r.cost_usd > 0);
+  }
+  // The formula is explicit: expected value = value x share x slice x odds; the verdict compares it with the cost.
+  const plan = { capital: 500, gas_hi: 4, hold: 30, hours: 2 }, a = engine.ASSUME;
+  const n = engine.netValue(1e7, 1e8, 0.5, plan);
+  assert.ok(Math.abs(n.ev - 1e7 * a.share * Math.min(1, (500 * a.active) / 1e8) * 0.5) < 1e-6);
+  assert.ok(Math.abs(n.cost - (500 * a.rate * 30 / 365 + 4 + 2 * a.hour)) < 1e-9);
+  assert.equal(engine.netValue(1e10, 1e6, 1, plan).verdict, 'farm');
+  assert.equal(engine.netValue(1, 1e9, 0, plan).verdict, 'skip');
+  assert.ok(notesBlock(fit, radar).includes(`R2 ${fit.held_out[fit.chosen].r2.toFixed(2)}`));
+});
+
+test('--notes rewrites only the block between the markers with the computed numbers', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'radar-notes-'));
+  const input = join(dir, 'snapshot.json'), notes = join(dir, 'NOTES.md');
+  writeFileSync(input, JSON.stringify(synthetic()));
+  writeFileSync(notes, 'before\n<!-- results -->\nstale 0.15\n<!-- /results -->\nafter\n');
+  execFileSync(process.execPath, ['main.ts', '--input', input, '--output', join(dir, 'out'), '--notes', notes], { cwd: root, stdio: 'pipe' });
+  const text = readFileSync(notes, 'utf8');
+  assert.ok(text.startsWith('before\n') && text.endsWith('after\n') && !text.includes('stale'));
+  const board = JSON.parse(readFileSync(join(dir, 'out', 'board.json'), 'utf8'));
+  assert.ok(text.includes(`R2 ${board.model.held_out.r2.toFixed(2)}`) && text.includes(`${board.rows.length} rows`));
+});
+
+test('odds come from peers of the same bands, and widen when a cell is thin', () => {
+  const snap = parseSnapshot(JSON.stringify(synthetic()));
+  const of = oddsTable(snap), pre = snap.protocols.find((p) => p.mcap_usd === null)!, o = of(pre);
+  assert.ok(o.n >= 8 && o.odds > 0 && o.odds < 1 && o.basis.length > 0);
+  const lone = { ...pre, tvl_usd: 9e12, listed_at: '2026-11-13' };
+  assert.ok(of(lone).n === 0 || of(lone).n >= 8);
 });
 
 test('implied value rises with TVL when nothing else changes', () => {
