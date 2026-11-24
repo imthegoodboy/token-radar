@@ -64,5 +64,6 @@ writeFileSync(
 const hold = fit.held_out.full;
 process.stdout.write(
   `token radar: ${radar.counts.protocols} protocols, ${radar.counts.watchlist} on the watchlist, ${board.length} rows (${radar.counts.early} beyond it), model fitted on ${fit.n} live tokens\n` +
-    `token radar: held-out R2 ${hold.r2.toFixed(2)}, median error x${hold.median_factor.toFixed(2)}; wrote ${files.length} dashboard files and ${shots.length} screenshots\n`,
+    `token radar: held-out R2 ${hold.r2.toFixed(2)}, median error x${hold.median_factor.toFixed(2)}, ridge penalty ${fit.lambda}; top of the board is ${board[0]!.name}\n` +
+    `token radar: wrote ${files.length} dashboard files and ${shots.length} screenshots\n`,
 );

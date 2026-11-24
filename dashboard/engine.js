@@ -10,7 +10,7 @@
 
   var DAY = 86400000;
   var GROWTH_MIN = -50, GROWTH_MAX = 100; // per cent: the clamp on seven-day TVL change
-  var LAMBDAS = [0.1, 0.3, 1, 3, 10, 30];
+  var LAMBDAS = [0.1, 0.3, 1, 3, 10, 30, 100, 300];
   // Feature order: 0 log10 TVL, 1 growth, 2 log2 age, 3 age unknown, 4..7 category group dummies.
   var GROUPS = ['credit', 'dex', 'vault', 'rwa']; // derivatives (4 comparables) and the rest fall into 'other'
   var NAMES = ['log10 TVL', '7d growth', 'log2 age', 'age unknown'].concat(GROUPS.map(function (g) { return 'group ' + g; }));
