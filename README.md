@@ -11,7 +11,7 @@ A token launch radar: protocols DefiLlama records no token for, ranked by an imp
 ```sh
 MAKEFUN_OUTPUT_DIR=out node main.ts --input path/to/snapshot.json
 # open out/dashboard/index.html
-node --test test/
+node --test test/radar.test.ts
 ```
 
 ---

@@ -1,4 +1,4 @@
-// Tests: `node --test test/` (Node 22.18+). They build a synthetic snapshot, so no kit file is needed, and check the
+// Tests: `node --test test/radar.test.ts` (Node 22.18+). They build a synthetic snapshot, so no kit file is needed, and check the
 // gate's rules (board shape, ranks, watchlist coverage, farm steps, dossier bytes, no network addresses) by running main.ts.
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';

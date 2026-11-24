@@ -15,4 +15,4 @@ Farm plans come from `farmPlan` in the same file: category picks the actions, th
 gas set capital, age sets the hold, 7-day growth sets the exit trigger. Gas per transaction is a stated assumption.
 
 One engine file serves main.ts (which writes board.json) and the page (which re-fits and recomputes), so the page's
-numbers and the board's are the same arithmetic. Run `node --test test/` for the tests.
+numbers and the board's are the same arithmetic. Run `node --test test/radar.test.ts` for the tests.
