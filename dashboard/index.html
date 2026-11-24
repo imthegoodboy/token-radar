@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Token Radar: pre-token protocols by implied value</title>
+<meta name="description" content="Protocols DefiLlama records no token for, ranked by the market cap comparable live tokens have, with a costed farm plan for each.">
+<link rel="stylesheet" href="app.css">
+<!--
+  Notes for a reviewer. Criteria map to code: coverage and ranking are built by buildRadar and boardIssue (lib/model.ts)
+  and shown by renderBoard; the value model is fitValueModel and impliedValue in engine.js (fit, held-out test, cross
+  validation, bootstrap), which the page re-runs from renderModel's button; farm plans are farmPlan in engine.js and
+  appear in renderDetail. Live tokens are kept apart in renderLive. The page makes no network request.
+-->
+</head>
+<body>
+<a class="skip" href="#app">Skip to the board</a>
+<header class="top">
+  <div class="wrap">
+    <p class="eyebrow">Token Radar · fixed DefiLlama snapshot</p>
+    <h1>Which pre-token protocols are worth farming?</h1>
+    <p id="summary" class="lede"></p>
+    <div role="tablist" aria-label="Views" class="tabs">
+      <button type="button" role="tab" id="t-board" aria-controls="v-board">Pre-token board</button>
+      <button type="button" role="tab" id="t-live" aria-controls="v-live">Already trading</button>
+      <button type="button" role="tab" id="t-model" aria-controls="v-model">Model and tests</button>
+    </div>
+  </div>
+</header>
+<main id="app" class="wrap" aria-busy="true">
+  <section id="v-board" role="tabpanel" aria-labelledby="t-board">
+    <form class="tools" role="search" aria-label="Filter the board" onsubmit="return false">
+      <label class="grow">Search<input id="q" type="search" placeholder="name, category or chain" autocomplete="off"></label>
+      <label>Category<select id="cat"><option value="all">All categories</option></select></label>
+      <label>Chain<select id="chain"><option value="all">All chains</option></select></label>
+      <label>Scope<select id="scope"><option value="all">Whole board</option><option value="wl">Watchlist only</option><option value="early">Beyond the watchlist</option></select></label>
+      <label>Sort<select id="sortsel"><option value="r:1">Implied value, high first</option><option value="tvl:-1">TVL, high first</option><option value="g:-1">7-day growth, high first</option><option value="age:-1">Longest without a token</option><option value="cost:1">Cheapest to farm</option><option value="name:1">Name</option></select></label>
+      <button type="button" id="reset" class="btn" hidden>Clear filters</button>
+    </form>
+    <p id="count" class="count" role="status" aria-live="polite"></p>
+    <div class="split">
+      <div class="scroll" id="board-table"></div>
+      <aside id="detail" class="detail" tabindex="-1" aria-label="How to read the board"></aside>
+    </div>
+  </section>
+  <section id="v-live" role="tabpanel" aria-labelledby="t-live" hidden>
+    <p class="note">These protocols already record a token, so the market sets their value. They are kept off the ranked board. The model column is each comparable's estimate from fits that never saw it.</p>
+    <form class="tools" role="search" onsubmit="return false"><label class="grow">Search<input id="lq" type="search" placeholder="name or ticker" autocomplete="off"></label></form>
+    <p id="lcount" class="count" role="status" aria-live="polite"></p>
+    <div class="scroll" id="live-table"></div>
+  </section>
+  <section id="v-model" role="tabpanel" aria-labelledby="t-model" hidden></section>
+</main>
+<footer class="wrap foot">Implied values are this page's own estimate, not a price or advice. DefiLlama records no token for these protocols; that is a record, not proof.</footer>
+<script src="../data.js"></script>
+<script src="engine.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
